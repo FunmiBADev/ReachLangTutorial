@@ -13,3 +13,4 @@ build
 .reach
 .docker-root
 /test.sh
+.index.rsh.temp
