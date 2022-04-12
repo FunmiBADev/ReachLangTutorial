@@ -1,16 +1,16 @@
 'reach 0.1'
 
 const [isHand, ROCK, PAPER, SCISSORS] = makeEnum(3)
-const [isOutcome, B_WINS, DRAW, A_WINS] = makeEnum(3)
+const [isOutcome, D_WINS, DRAW, F_WINS] = makeEnum(3)
 
-const winner = (handAlice, handBob) => (handAlice + (4 - handBob)) % 3
+const winner = (handFunmi, handDemi) => (handFunmi + (4 - handDemi)) % 3
 
-assert(winner(ROCK, PAPER) == B_WINS)
-assert(winner(PAPER, ROCK) == A_WINS)
+assert(winner(ROCK, PAPER) == D_WINS)
+assert(winner(PAPER, ROCK) == F_WINS)
 assert(winner(ROCK, ROCK) == DRAW)
 
-forall(UInt, handAlice =>
-  forall(UInt, handBob => assert(isOutcome(winner(handAlice, handBob))))
+forall(UInt, handFunmi =>
+  forall(UInt, handDemi => assert(isOutcome(winner(handFunmi, handDemi))))
 )
 
 forall(UInt, hand => assert(winner(hand, hand) == DRAW))
@@ -23,35 +23,35 @@ const Player = {
 }
 
 export const main = Reach.App(() => {
-  const Alice = Participant('Alice', {
+  const Funmi = Participant('Funmi', {
     ...Player,
     wager: UInt, // atomic units of currency
     deadline: UInt // time delta (blocks/rounds)
   })
-  const Bob = Participant('Bob', {
+  const Demi = Participant('Demi', {
     ...Player,
     acceptWager: Fun([UInt], Null)
   })
   init()
 
   const informTimeout = () => {
-    each([Alice, Bob], () => {
+    each([Funmi, Demi], () => {
       interact.informTimeout()
     })
   }
 
-  Alice.only(() => {
+  Funmi.only(() => {
     const wager = declassify(interact.wager)
     const deadline = declassify(interact.deadline)
   })
-  Alice.publish(wager, deadline).pay(wager)
+  Funmi.publish(wager, deadline).pay(wager)
   commit()
 
-  Bob.only(() => {
+  Demi.only(() => {
     interact.acceptWager(wager)
   })
-  Bob.pay(wager).timeout(relativeTime(deadline), () =>
-    closeTo(Alice, informTimeout)
+  Demi.pay(wager).timeout(relativeTime(deadline), () =>
+    closeTo(Funmi, informTimeout)
   )
 
   var outcome = DRAW
@@ -59,43 +59,43 @@ export const main = Reach.App(() => {
   while (outcome == DRAW) {
     commit()
 
-    Alice.only(() => {
-      const _handAlice = interact.getHand()
-      const [_commitAlice, _saltAlice] = makeCommitment(interact, _handAlice)
-      const commitAlice = declassify(_commitAlice)
+    Funmi.only(() => {
+      const _handFunmi = interact.getHand()
+      const [_commitFunmi, _saltFunmi] = makeCommitment(interact, _handFunmi)
+      const commitFunmi = declassify(_commitFunmi)
     })
-    Alice.publish(commitAlice).timeout(relativeTime(deadline), () =>
-      closeTo(Bob, informTimeout)
+    Funmi.publish(commitFunmi).timeout(relativeTime(deadline), () =>
+      closeTo(Demi, informTimeout)
     )
     commit()
 
-    unknowable(Bob, Alice(_handAlice, _saltAlice))
-    Bob.only(() => {
-      const handBob = declassify(interact.getHand())
+    unknowable(Demi, Funmi(_handFunmi, _saltFunmi))
+    Demi.only(() => {
+      const handDemi = declassify(interact.getHand())
     })
-    Bob.publish(handBob).timeout(relativeTime(deadline), () =>
-      closeTo(Alice, informTimeout)
+    Demi.publish(handDemi).timeout(relativeTime(deadline), () =>
+      closeTo(Funmi, informTimeout)
     )
     commit()
 
-    Alice.only(() => {
-      const saltAlice = declassify(_saltAlice)
-      const handAlice = declassify(_handAlice)
+    Funmi.only(() => {
+      const saltFunmi = declassify(_saltFunmi)
+      const handFunmi = declassify(_handFunmi)
     })
-    Alice.publish(saltAlice, handAlice).timeout(relativeTime(deadline), () =>
-      closeTo(Bob, informTimeout)
+    Funmi.publish(saltFunmi, handFunmi).timeout(relativeTime(deadline), () =>
+      closeTo(Demi, informTimeout)
     )
-    checkCommitment(commitAlice, saltAlice, handAlice)
+    checkCommitment(commitFunmi, saltFunmi, handFunmi)
 
-    outcome = winner(handAlice, handBob)
+    outcome = winner(handFunmi, handDemi)
     continue
   }
 
-  assert(outcome == A_WINS || outcome == B_WINS)
-  transfer(2 * wager).to(outcome == A_WINS ? Alice : Bob)
+  assert(outcome == F_WINS || outcome == D_WINS)
+  transfer(2 * wager).to(outcome == F_WINS ? Funmi : Demi)
   commit()
 
-  each([Alice, Bob], () => {
+  each([Funmi, Demi], () => {
     interact.seeOutcome(outcome)
   })
 })
